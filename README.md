@@ -1,8 +1,8 @@
 # Hermes AgentBar
 
 A Windows system-tray app that shows **Command Code** token usage, live budget status, and **OpenRouter** credits at a glance.
-
-![icon](assets/hermes_agentbar.ico)
+<img width="373" height="578" alt="image" src="https://github.com/user-attachments/assets/79000977-4be1-4a0b-a846-db0e75e76ee6" />
+<img width="374" height="574" alt="image" src="https://github.com/user-attachments/assets/5b56bac4-6cc9-49b5-862a-0cb40ef81952" />
 
 Left-click the tray icon → a borderless popup opens with:
 - **Budget Status** — live countdown to your 5‑hour and weekly USD caps (from commandcode.ai)
