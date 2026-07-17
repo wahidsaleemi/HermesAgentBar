@@ -1,6 +1,7 @@
 # Hermes AgentBar
 
 A Windows system-tray app that shows **Command Code** token usage, live budget status, and **OpenRouter** credits at a glance.
+
 <img width="373" height="578" alt="image" src="https://github.com/user-attachments/assets/79000977-4be1-4a0b-a846-db0e75e76ee6" />
 <img width="374" height="574" alt="image" src="https://github.com/user-attachments/assets/5b56bac4-6cc9-49b5-862a-0cb40ef81952" />
 
@@ -176,24 +177,24 @@ This keeps a console window open. Use `pythonw` above if you want the prompt bac
 ## Architecture
 
 ```
-┌─────────────────────────────┐     ┌──────────────────────────────────┐
+┌──────────────────────────────┐     ┌───────────────────────────────────┐
 │  Windows tray app            │     │  Linux host                       │
-│                              │     │                                    │
-│  hermes_agentbar.py          │────▶│  host/commandbar_bridge.py         │
-│    pystray icon +            │ HTTP│    GET /api/usage                  │
-│    AgentBarPopup             │     │    reads ~/.hermes/state.db (ro)   │
-│                              │     │                                    │
-│  fetchers.py                 │────▶│  api.openrouter.ai                 │
-│    CommandCodeFetcher        │ HTTP│    GET /api/v1/credits             │
-│    OpenRouterFetcher         │     │                                    │
-│    CommandCodeCostFetcher    │────▶│  api.commandcode.ai                │
-│                              │ HTTP│    GET /internal/billing/credits   │
-│                              │     │    (uses session cookie)           │
-│  ui_panel.py                 │     │                                    │
-│    _PopupWindow              │     │                                    │
-│    Command Code + OpenRouter │     │                                    │
-│    tabs (customtkinter)      │     │                                    │
-└─────────────────────────────┘     └──────────────────────────────────┘
+│                              │     │                                   │
+│  hermes_agentbar.py          │────▶│  host/commandbar_bridge.py        │
+│    pystray icon +            │ HTTP│    GET /api/usage                 │
+│    AgentBarPopup             │     │    reads ~/.hermes/state.db (ro)  │
+│                              │     │                                   │
+│  fetchers.py                 │────▶│  api.openrouter.ai                │
+│    CommandCodeFetcher        │ HTTP│    GET /api/v1/credits            │
+│    OpenRouterFetcher         │     │                                   │
+│    CommandCodeCostFetcher    │────▶│  api.commandcode.ai               │
+│                              │ HTTP│    GET /internal/billing/credits  │
+│                              │     │    (uses session cookie)          │
+│  ui_panel.py                 │     │                                   │
+│    _PopupWindow              │     │                                   │
+│    Command Code + OpenRouter │     │                                   │
+│    tabs (customtkinter)      │     │                                   │
+└──────────────────────────────┘     └───────────────────────────────────┘
 ```
 
 | File | Role |
