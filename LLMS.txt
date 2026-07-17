@@ -1,0 +1,132 @@
+# LLMS.txt — Hermes AgentBar
+
+> For AI agents: everything you need to install, run, and modify this project.
+
+## What this project is
+
+Hermes AgentBar is a Windows system-tray app (Python + pystray + customtkinter) that shows Command Code token usage, live USD budget status, and OpenRouter credits in a borderless popup.
+
+It consists of:
+- **Windows tray app** (`hermes_agentbar.py`) — pystray icon + thread-safe popup
+- **Three HTTP fetchers** (`fetchers.py`) — never raise on network errors
+- **Linux bridge** (`host/commandbar_bridge.py`) — zero deps, read-only access to `~/.hermes/state.db`
+- **UI panel** (`ui_panel.py`) — customtkinter popup with Command Code / OpenRouter tabs
+
+## How to instruct your user to install
+
+```
+1. Linux host: start the bridge
+   cd /path/to/HermesAgentBar
+   HERMES_AGENTBAR_HOST=0.0.0.0 python3 host/commandbar_bridge.py
+   (Optionally set HERMES_AGENTBAR_TOKEN for auth)
+
+2. Windows: install Python 3.10+ from python.org
+
+3. Windows: install dependencies
+   pip install -r requirements.txt
+
+4. Windows: run
+   pythonw hermes_agentbar.py
+   (pythonw = no console window; use python if you want logs visible)
+
+5. On first run, config is created at %APPDATA%/HermesAgentBar/config.json
+   Fill in bridge_url (LAN IP of Linux host) and bridge_token if auth is enabled.
+
+6. For Budget Status (Command Code USD caps): see "Getting the cc_session_cookie" below.
+
+7. For OpenRouter: fill in openrouter_key in config.json (leave empty to hide).
+
+8. Build a standalone .exe (optional):
+   powershell -ExecutionPolicy Bypass -File build.ps1
+```
+
+## Getting the `cc_session_cookie` (tell your user this)
+
+```
+1. Log into commandcode.ai in Chrome/Edge
+2. F12 → Network tab → refresh the page
+3. Find the /internal/usage or /internal/billing/credits request
+4. Right-click → Copy → Copy as cURL (bash)
+5. Paste in a text editor. Find `-b '...'` — that's the Cookie header
+6. Copy the entire value inside `-b '...'` (includes __Secure-commandcode_prod_ cookies)
+7. Paste into config.json as the "cc_session_cookie" value
+
+Cookie expires after ~7 days. Re-extract when Budget Status goes blank.
+```
+
+## Architecture (for modifications)
+
+```
+hermes_agentbar.py          — entry point, owns everything
+  └─ HermesAgentBar.__init__()     builds 3 fetchers from config
+  └─ .do_refresh()                 fetches all 3 sources, stores last-good
+  └─ ._refresh_loop()              daemon thread, calls do_refresh() every N min
+  └─ .run()                        pystray + tkinter mainloop
+
+fetchers.py                 — HTTP clients (defensive: never raise)
+  └─ CommandCodeFetcher            GET {bridge_url}/api/usage
+  └─ OpenRouterFetcher             GET https://openrouter.ai/api/v1/credits
+  └─ CommandCodeCostFetcher        GET https://api.commandcode.ai/internal/billing/credits
+                                   (sends raw Cookie header from cc_session_cookie config)
+
+ui_panel.py                 — customtkinter popup
+  └─ AgentBarPopup                 show/hide/toggle facade
+  └─ _PopupWindow                  borderless toplevel, always-on-top
+      ├─ _build_command_panel()     Budget Status + collapsible Token Usage
+      ├─ _cost_forecast()           5h / weekly USD bars with countdown
+      ├─ _token_card()              5h / 7d input/output/cache/reasoning
+      ├─ _budget_bar()              user-set weekly token budget
+      ├─ _daily_trend()             purple bar chart (Canvas)
+      ├─ _build_openrouter_panel()  USD balance + lime progress bar
+      └─ _forecast_row()            single budget row (cost/budget/pct/label)
+
+config.py                   — JSON config at %APPDATA%/HermesAgentBar/config.json
+  └─ DEFAULT_CONFIG: bridge_url, bridge_token, openrouter_key,
+                     refresh_minutes, weekly_token_budget,
+                     cc_session_cookie, cc_5h_budget, cc_weekly_budget
+
+host/commandbar_bridge.py   — Linux HTTP server (stdlib only)
+  └─ GET /api/usage → JSON with windows (5h/7d), by_model, daily_7d
+     (reads from ~/.hermes/state.db, session_model_usage table)
+     No Command Code API — tokens only, no dollar figures.
+```
+
+## Key design decisions
+
+- **All GUI imports are deferred** into functions — `hermes_agentbar.py` can be imported headless for unit testing
+- **Fetchers never raise** — all return well-shaped fallback dicts on error
+- **Last-good data is retained** — a transient network failure never blanks the popup
+- **Config is reloaded on every refresh** — edits to config.json take effect without restart
+- **Left-click activates the `default` menu item** (pystray Windows requirement) — toggles the popup
+- **Collapsible token section** — `_cc_token_open` state, `pack()` / `pack_forget()` on the frame
+- **Budget Status uses the real billing API** (`/internal/billing/credits`), not usage-item summing — pre-computed windows with exact reset timestamps
+
+## Color constants (ui_panel.py)
+
+```
+ACCENT   = "#2DD4BF"  # teal (primary brand — CC tab, header dot)
+GREEN    = "#34D399"  # budget status bars and labels
+PURPLE   = "#8B5CF6"  # daily trend heading and bar peaks
+LIME     = "#BCE241"  # OpenRouter USD badge, tab highlight, dot
+BG       = "#0E1525"  # deep slate background
+SURFACE  = "#16203A"  # card surface
+```
+
+## Adding a new data source
+
+1. Add a fetcher class to `fetchers.py` (follow the defensive pattern: return fallback on error, never raise)
+2. Instantiate it in `HermesAgentBar.__init__()` if the relevant config key is set
+3. Call `.fetch()` in `do_refresh()` and store last-good under the lock
+4. Pass the result through `_refresh_popup_if_visible()` and `_toggle_popup()` to the popup
+5. Add a `cc_fetcher=` kwarg to `AgentBarPopup.show()` / `toggle()` and `_PopupWindow.__init__()`
+6. Build the UI section in `_build_command_panel()` or as a new method
+
+## Test suite
+
+```
+pytest tests/           # 25 tests, all headless (no GUI imports)
+  tests/test_app.py     # config round-trip, compute_status, do_refresh
+  tests/test_fetchers.py # all fetchers with mocked HTTP
+```
+
+To add tests: follow the mock pattern — use `unittest.mock.patch("requests.get", return_value=...)`. Never call real endpoints.

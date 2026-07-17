@@ -1,0 +1,13 @@
+# Hermes AgentBar — runtime + build dependencies
+# Target OS: Windows (the tray app). The bridge runs on Linux (stdlib only).
+# Keep this list minimal: drop any Codex/Claude/OpenAI/pty deps inherited from the fork.
+
+# --- Runtime ---
+pystray>=0.19.5          # system tray icon + menu (Windows backend)
+Pillow>=10.0             # icon/image handling for pystray
+customtkinter>=5.2       # usage popup panel UI
+requests>=2.31           # HTTP client for OpenRouter + bridge fetchers
+pywin32>=306             # Windows tray/win32 integration (pystray dependency)
+
+# --- Build only (PyInstaller bundles the exe; not needed at runtime) ---
+pyinstaller>=6.0
